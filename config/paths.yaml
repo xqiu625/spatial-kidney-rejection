@@ -1,0 +1,24 @@
+# Path configuration for HPCC cluster
+
+base_dir: /bigdata/godziklab/shared/Xinru/302031-spatial-kidney
+
+data:
+  raw: ${base_dir}/data/raw
+  processed: ${base_dir}/data/processed
+  reference: ${base_dir}/data/reference
+
+output:
+  results: ${base_dir}/results
+  tables: ${base_dir}/results/tables
+  figures: ${base_dir}/results/figures
+
+# Sample information
+samples:
+  - name: GSM9155022_control_58055
+    condition: control
+  - name: GSM9155023_active_AMR_58056
+    condition: rejection
+  - name: GSM9155024_acute_TCMR_58057
+    condition: rejection
+  - name: GSM9155025_chronic_active_AMR_58058
+    condition: rejection

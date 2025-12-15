@@ -1,0 +1,31 @@
+# Analysis parameters for spatial kidney transplant project
+
+preprocessing:
+  min_genes: 200          # Minimum genes per spot
+  min_cells: 3            # Minimum spots per gene
+  n_top_genes: 2000       # Number of highly variable genes
+  max_pct_mt: 20          # Maximum mitochondrial percentage
+
+clustering:
+  n_pcs: 30               # Number of PCs for neighbors
+  n_neighbors: 15         # Number of neighbors
+  resolution: 0.5         # Leiden resolution
+
+spatial:
+  coord_type: "generic"   # Coordinate type for spatial neighbors
+  n_neighs: 6             # Number of spatial neighbors
+
+deconvolution:
+  n_cells_per_location: 30    # Expected cells per Visium spot
+  detection_alpha: 20         # Detection sensitivity
+  max_epochs: 30000           # Training epochs
+
+niche:
+  n_clusters: 8           # Number of niches to identify
+
+ligand_receptor:
+  n_perms: 1000           # Permutations for significance
+
+visualization:
+  figure_dpi: 300         # DPI for saved figures
+  spot_size: 1.3          # Size of spots in spatial plots
