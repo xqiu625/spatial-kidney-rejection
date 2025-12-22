@@ -27,33 +27,8 @@ This project extends our [published research in Frontiers in Immunology](https:/
 
 ## Analysis Pipeline
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                     SPATIAL TRANSCRIPTOMICS PIPELINE                         │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐             │
-│   │  01_QC   │───▶│02_Cluster│───▶│03_CellType│───▶│04_Niches │             │
-│   │ Loading  │    │  Leiden  │    │  Scoring  │    │ Analysis │             │
-│   └──────────┘    └──────────┘    └──────────┘    └──────────┘             │
-│        │               │               │               │                    │
-│        ▼               ▼               ▼               ▼                    │
-│   Filter spots    Spatial PCA    Marker-based    Neighborhood              │
-│   Normalize       UMAP/Leiden    cell scoring    enrichment                │
-│   HVG selection   11 clusters    8 cell types    Co-occurrence             │
-│                                                                              │
-│                           ┌──────────┐                                      │
-│                           │05_LigRec │                                      │
-│                           │ Analysis │                                      │
-│                           └──────────┘                                      │
-│                                │                                            │
-│                                ▼                                            │
-│                    Custom L-R interaction scoring                           │
-│                    Permutation-based p-values                               │
-│                    Control vs Rejection comparison                          │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+![Spatial Transcriptomics Pipeline](spatial-kidney-rejection-overview.jpeg)
+*Complete analysis pipeline from data loading through ligand-receptor analysis*
 
 ---
 
