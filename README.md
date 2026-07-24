@@ -38,21 +38,21 @@ This project extends our [published research in Frontiers in Immunology](https:/
 
 A Visium sample is a tuple $(\mathbf{X}, \mathbf{P})$ where $\mathbf{X} \in \mathbb{N}_0^{n \times G}$ is the UMI count matrix over $n = 3{,}431$ spots and $G = 18{,}027$ genes, and $\mathbf{P} \in \mathbb{R}^{n \times 2}$ holds the spatial centroids. Counts are library-size normalized and log-transformed:
 
-$$\tilde{x}_{ig} = \log\!\left(1 + 10^{4} \cdot \frac{x_{ig}}{\sum_{g'=1}^{G} x_{ig'}}\right).$$
+$$\tilde{x}_{ig} = \log\left(1 + 10^{4} \cdot \frac{x_{ig}}{\sum_{g'=1}^{G} x_{ig'}}\right).$$
 
 ### 2. Spatial Proximity Graph
 
-Tissue geometry is encoded as an undirected graph $\mathcal{G} = (\mathcal{V}, \mathcal{E})$ with adjacency
+Tissue geometry is encoded as an undirected graph
 
-$$A_{ij} = \mathbb{1}\!\left[\, j \in \mathrm{kNN}_k(i)\ \lor\ i \in \mathrm{kNN}_k(j) \,\right],$$
+$$\mathcal{G} = (\mathcal{V}, \mathcal{E}), \qquad A_{ij} = \mathbb{1}\left[\  j \in \mathrm{kNN}_k(i)\ \lor\ i \in \mathrm{kNN}_k(j) \ \right],$$
 
-where $\mathrm{kNN}_k(i)$ are the $k$ nearest neighbors of spot $i$ under Euclidean distance on $\mathbf{P}$. All spatial statistics below are computed on $\mathcal{G}$.
+where $A$ is the adjacency matrix and $\mathrm{kNN}_k(i)$ are the $k$ nearest neighbors of spot $i$ under Euclidean distance on $\mathbf{P}$. All spatial statistics below are computed on $\mathcal{G}$.
 
 ### 3. Graph-Based Clustering (Leiden)
 
 Spots are partitioned by maximizing modularity on the (expression $\times$ space) neighbor graph at resolution $\gamma$:
 
-$$Q = \frac{1}{2m}\sum_{i,j}\left[ A_{ij} - \gamma \, \frac{k_i k_j}{2m} \right] \delta(c_i, c_j), \qquad k_i = \sum_j A_{ij},\quad m = \tfrac{1}{2}\sum_{i,j} A_{ij},$$
+$$Q = \frac{1}{2m}\sum_{i,j}\left[ A_{ij} - \gamma \  \frac{k_i k_j}{2m} \right] \delta(c_i, c_j), \qquad k_i = \sum_j A_{ij},\quad m = \tfrac{1}{2}\sum_{i,j} A_{ij},$$
 
 where $c_i$ is the community of spot $i$ and $\delta$ the Kronecker delta. The Leiden algorithm guarantees communities that are *well-connected* (no disconnected sub-communities), unlike Louvain.
 
@@ -62,15 +62,15 @@ Each of the 8 kidney cell types $t$ is defined by a marker set $\mathcal{M}_t$. 
 
 $$s_i^{(t)} = \frac{1}{|\mathcal{M}_t|}\sum_{g \in \mathcal{M}_t} z_{ig}, \qquad z_{ig} = \frac{\tilde{x}_{ig} - \mu_g}{\sigma_g},$$
 
-with hard assignment $t_i^{*} = \arg\max_{t}\, s_i^{(t)}$.
+with hard assignment $t_i^{*} = \arg\max_{t}\  s_i^{(t)}$.
 
 ### 5. Neighborhood Enrichment
 
 For cluster pair $(a, b)$, let $N_{ab}$ be the number of edges in $\mathcal{G}$ connecting a spot of cluster $a$ to one of cluster $b$. Significance is assessed against the null of spatial randomness via label permutation:
 
-$$Z_{ab} = \frac{N_{ab} - \mathbb{E}_{0}[N_{ab}]}{\operatorname{sd}_{0}(N_{ab})},$$
+$$Z_{ab} = \frac{N_{ab} - \mathbb{E}_{0}[N_{ab}]}{\mathrm{sd}_{0}(N_{ab})},$$
 
-where $\mathbb{E}_0$ and $\operatorname{sd}_0$ are taken over permutations of the cluster labels. $|Z_{ab}| \gg 2$ indicates significant co-localization ($Z > 0$: enrichment; $Z < 0$: avoidance).
+where $\mathbb{E}_0$ and $\mathrm{sd}_0$ are taken over permutations of the cluster labels. $|Z_{ab}| \gg 2$ indicates significant co-localization ($Z > 0$: enrichment; $Z < 0$: avoidance).
 
 ### 6. Ligand–Receptor Communication Inference
 
@@ -80,11 +80,11 @@ $$S_{\ell r} = \bar{x}_{\ell}^{(\mathcal{S})} \cdot \bar{x}_{r}^{(\mathcal{R})},
 
 **Permutation test** ($B = 500$): cell-type labels are reshuffled 500 times to build a null distribution $\{S^{(b)}\}$ over the statistic, and the exact Monte-Carlo p-value is
 
-$$p = \frac{1 + \sum_{b=1}^{B} \mathbb{1}\!\left[\, S^{(b)} \geq S_{\text{obs}} \,\right]}{B + 1}.$$
+$$p = \frac{1 + \sum_{b=1}^{B} \mathbb{1}\left[\  S^{(b)} \geq S_{\text{obs}} \ \right]}{B + 1}.$$
 
 **Condition-specific differential signaling** between rejection and control is quantified as
 
-$$\Delta \log_2 \mathrm{FC}_{\ell r} = \log_2 \frac{S_{\ell r}^{\,\text{rejection}} + \varepsilon}{S_{\ell r}^{\,\text{control}} + \varepsilon}, \qquad \varepsilon \ll 1.$$
+$$\Delta \log_2 \mathrm{FC}_{\ell r} = \log_2 \frac{S_{\ell r}^{\ \text{rejection}} + \varepsilon}{S_{\ell r}^{\ \text{control}} + \varepsilon}, \qquad \varepsilon \ll 1.$$
 
 ### 7. Multiple Testing Correction
 
