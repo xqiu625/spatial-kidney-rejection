@@ -6,9 +6,9 @@
 [![Squidpy](https://img.shields.io/badge/Squidpy-1.3+-purple.svg)](https://squidpy.readthedocs.io/)
 [![Paper](https://img.shields.io/badge/Paper-Frontiers_in_Immunology-red.svg)](https://www.frontiersin.org/journals/immunology/articles/10.3389/fimmu.2025.1654741/full)
 
-> **Advanced spatial transcriptomics pipeline for analyzing immune microenvironments in kidney allograft rejection using 10X Visium data.**
+> **Graph-theoretic and permutation-based statistical framework for dissecting immune microenvironments in kidney allograft rejection from 10X Visium data.**
 
-This project extends our [published research in Frontiers in Immunology](https://www.frontiersin.org/journals/immunology/articles/10.3389/fimmu.2025.1654741/full) (Data: [GSE304669](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE304669)) with advanced computational methods including spatial neighborhood analysis, cell-cell communication inference, and condition-specific ligand-receptor profiling.
+This project extends our [published research in Frontiers in Immunology](https://www.frontiersin.org/journals/immunology/articles/10.3389/fimmu.2025.1654741/full) (Data: [GSE304669](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE304669)) with a fully quantitative treatment of spatial neighborhood analysis, cell–cell communication inference, and condition-specific ligand–receptor profiling.
 
 ---
 
@@ -32,17 +32,75 @@ This project extends our [published research in Frontiers in Immunology](https:/
 
 ---
 
-## Technical Highlights
+## Mathematical Framework
 
-### Methods Implemented
+### 1. Data Model
 
-| Analysis | Method | Description |
-|----------|--------|-------------|
-| **Spatial Clustering** | Leiden + Spatial PCA | Graph-based clustering with spatial context |
-| **Cell Type Scoring** | Marker-based | Custom scoring for 8 kidney cell types |
-| **Niche Identification** | Squidpy | Neighborhood enrichment & co-occurrence |
-| **L-R Communication** | Custom permutation | 500 permutations for statistical significance |
-| **Differential Analysis** | Log2FC comparison | Control vs rejection L-R changes |
+A Visium sample is a tuple $(\mathbf{X}, \mathbf{P})$ where $\mathbf{X} \in \mathbb{N}_0^{n \times G}$ is the UMI count matrix over $n = 3{,}431$ spots and $G = 18{,}027$ genes, and $\mathbf{P} \in \mathbb{R}^{n \times 2}$ holds the spatial centroids. Counts are library-size normalized and log-transformed:
+
+$$\tilde{x}_{ig} = \log\!\left(1 + 10^{4} \cdot \frac{x_{ig}}{\sum_{g'=1}^{G} x_{ig'}}\right).$$
+
+### 2. Spatial Proximity Graph
+
+Tissue geometry is encoded as an undirected graph $\mathcal{G} = (\mathcal{V}, \mathcal{E})$ with adjacency
+
+$$A_{ij} = \mathbb{1}\!\left[\, j \in \mathrm{kNN}_k(i)\ \lor\ i \in \mathrm{kNN}_k(j) \,\right],$$
+
+where $\mathrm{kNN}_k(i)$ are the $k$ nearest neighbors of spot $i$ under Euclidean distance on $\mathbf{P}$. All spatial statistics below are computed on $\mathcal{G}$.
+
+### 3. Graph-Based Clustering (Leiden)
+
+Spots are partitioned by maximizing modularity on the (expression $\times$ space) neighbor graph at resolution $\gamma$:
+
+$$Q = \frac{1}{2m}\sum_{i,j}\left[ A_{ij} - \gamma \, \frac{k_i k_j}{2m} \right] \delta(c_i, c_j), \qquad k_i = \sum_j A_{ij},\quad m = \tfrac{1}{2}\sum_{i,j} A_{ij},$$
+
+where $c_i$ is the community of spot $i$ and $\delta$ the Kronecker delta. The Leiden algorithm guarantees communities that are *well-connected* (no disconnected sub-communities), unlike Louvain.
+
+### 4. Marker-Based Cell Type Scoring
+
+Each of the 8 kidney cell types $t$ is defined by a marker set $\mathcal{M}_t$. A spot's affinity for type $t$ is the mean of per-gene $z$-scored expression over the marker set:
+
+$$s_i^{(t)} = \frac{1}{|\mathcal{M}_t|}\sum_{g \in \mathcal{M}_t} z_{ig}, \qquad z_{ig} = \frac{\tilde{x}_{ig} - \mu_g}{\sigma_g},$$
+
+with hard assignment $t_i^{*} = \arg\max_{t}\, s_i^{(t)}$.
+
+### 5. Neighborhood Enrichment
+
+For cluster pair $(a, b)$, let $N_{ab}$ be the number of edges in $\mathcal{G}$ connecting a spot of cluster $a$ to one of cluster $b$. Significance is assessed against the null of spatial randomness via label permutation:
+
+$$Z_{ab} = \frac{N_{ab} - \mathbb{E}_{0}[N_{ab}]}{\operatorname{sd}_{0}(N_{ab})},$$
+
+where $\mathbb{E}_0$ and $\operatorname{sd}_0$ are taken over permutations of the cluster labels. $|Z_{ab}| \gg 2$ indicates significant co-localization ($Z > 0$: enrichment; $Z < 0$: avoidance).
+
+### 6. Ligand–Receptor Communication Inference
+
+For a curated ligand–receptor pair $(\ell, r)$ and sender/receiver populations $(\mathcal{S}, \mathcal{R})$ that are spatially adjacent, the interaction score couples mean ligand and receptor expression:
+
+$$S_{\ell r} = \bar{x}_{\ell}^{(\mathcal{S})} \cdot \bar{x}_{r}^{(\mathcal{R})}, \qquad \bar{x}_{g}^{(\mathcal{C})} = \frac{1}{|\mathcal{C}|}\sum_{i \in \mathcal{C}} \tilde{x}_{ig}.$$
+
+**Permutation test** ($B = 500$): cell-type labels are reshuffled $B$ times to build the null distribution $\{S^{(b)}\}_{b=1}^{B}$, and the exact Monte-Carlo $p$-value is
+
+$$p = \frac{1 + \sum_{b=1}^{B} \mathbb{1}\!\left[\, S^{(b)} \geq S_{\text{obs}} \,\right]}{B + 1}.$$
+
+**Condition-specific differential signaling** between rejection and control is quantified as
+
+$$\Delta \log_2 \mathrm{FC}_{\ell r} = \log_2 \frac{S_{\ell r}^{\,\text{rejection}} + \varepsilon}{S_{\ell r}^{\,\text{control}} + \varepsilon}, \qquad \varepsilon \ll 1.$$
+
+### 7. Multiple Testing Correction
+
+Across the $m = 50$ tested pairs, Benjamini–Hochberg controls the false discovery rate: with ordered $p$-values $p_{(1)} \leq \dots \leq p_{(m)}$, reject $H_{0(i)}$ for all $i \leq k^{*} = \max\{ i : p_{(i)} \leq \frac{i}{m} q \}$ at level $q = 0.05$.
+
+---
+
+## Methods Summary
+
+| Analysis | Method | Mathematical Object |
+|----------|--------|---------------------|
+| **Spatial Clustering** | Leiden + Spatial PCA | Modularity maximization on $\mathcal{G}$ |
+| **Cell Type Scoring** | Marker-based | $z$-scored marker means, $\arg\max$ assignment |
+| **Niche Identification** | Squidpy | Permutation $Z$-score of graph edge counts |
+| **L-R Communication** | Custom permutation | Score $S_{\ell r}$ + exact MC $p$-value ($B = 500$) |
+| **Differential Analysis** | Log2FC comparison | $\Delta \log_2 \mathrm{FC}$ rejection vs control |
 
 ### Cell Types Analyzed
 
@@ -130,7 +188,7 @@ spatial-kidney-rejection/
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/yourusername/spatial-kidney-rejection.git
+git clone https://github.com/xqiu625/spatial-kidney-rejection.git
 cd spatial-kidney-rejection
 ```
 
@@ -232,4 +290,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Original data from kidney transplant rejection study (GSE304669)
 - Scanpy and Squidpy development teams
 - 10X Genomics for Visium technology
-
