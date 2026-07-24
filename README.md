@@ -78,7 +78,7 @@ For a curated ligand–receptor pair $(\ell, r)$ and sender/receiver populations
 
 $$S_{\ell r} = \bar{x}_{\ell}^{(\mathcal{S})} \cdot \bar{x}_{r}^{(\mathcal{R})}, \qquad \bar{x}_{g}^{(\mathcal{C})} = \frac{1}{|\mathcal{C}|}\sum_{i \in \mathcal{C}} \tilde{x}_{ig}.$$
 
-**Permutation test** ($B = 500$): cell-type labels are reshuffled $B$ times to build the null distribution $\{S^{(b)}\}_{b=1}^{B}$, and the exact Monte-Carlo $p$-value is
+**Permutation test** ($B = 500$): cell-type labels are reshuffled 500 times to build a null distribution $\{S^{(b)}\}$ over the statistic, and the exact Monte-Carlo p-value is
 
 $$p = \frac{1 + \sum_{b=1}^{B} \mathbb{1}\!\left[\, S^{(b)} \geq S_{\text{obs}} \,\right]}{B + 1}.$$
 
