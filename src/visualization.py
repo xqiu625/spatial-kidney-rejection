@@ -233,6 +233,13 @@ def plot_spatial_clusters(
     if samples is None:
         samples = adata.obs['sample'].unique().tolist()
 
+    # Establish colors before slicing, or absent groups shift each slide's palette.
+    adata.obs[cluster_key] = adata.obs[cluster_key].astype('category')
+    categories = adata.obs[cluster_key].cat.categories
+    color_key = f'{cluster_key}_colors'
+    if color_key not in adata.uns or len(adata.uns[color_key]) != len(categories):
+        adata.uns[color_key] = sns.color_palette('husl', len(categories)).as_hex()
+
     nrows = int(np.ceil(len(samples) / ncols))
     fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 5 * nrows))
     axes = axes.flatten() if nrows * ncols > 1 else [axes]

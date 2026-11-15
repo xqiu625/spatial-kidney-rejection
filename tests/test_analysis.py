@@ -163,6 +163,24 @@ def test_lr_plot_honors_top_n():
     plt.close(fig)
 
 
+def test_spatial_profile_colors_do_not_shift_when_groups_are_absent():
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import to_rgba
+    a = toy()
+    a.obs['sample'] = ['s1', 's1', 's2', 's2']
+    a.obs['marker_profile'] = pd.Categorical(['0', '0', '1', '1'])
+    a.uns['spatial'] = {sample: {'images': {'hires': np.ones((10, 10, 3))},
+        'scalefactors': {'tissue_hires_scalef': 1, 'spot_diameter_fullres': 1}}
+        for sample in ['s1', 's2']}
+    fig = visualization.plot_spatial_clusters(a, cluster_key='marker_profile', ncols=2)
+    colors = a.uns['marker_profile_colors']
+    assert len(colors) == 2 and colors[0] != colors[1]
+    for index in range(2):
+        actual = fig.axes[index].collections[0].get_facecolors()[0]
+        np.testing.assert_allclose(actual, to_rgba(colors[index]))
+    plt.close(fig)
+
+
 def test_geo_preparation_rejects_nonfiles_and_never_extracts_paths(tmp_path):
     archive = tmp_path / 'malicious.tar'
     with tarfile.open(archive, 'w') as tar:
