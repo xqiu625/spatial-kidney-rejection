@@ -1,0 +1,114 @@
+{
+  "run_id": "corrected_20261114",
+  "analysis_code_commit": "75354df38d1679765dea7cb3dcfcbe07611009e1",
+  "working_tree_dirty_at_run_start": false,
+  "input_archive": {
+    "accession": "GSE304669",
+    "archive_sha256": "c798a1065a04cf967cb388f4c03fd40aa0b15421ba115b8124674f59317f211c",
+    "samples": [
+      "GSM9155022_control_58055",
+      "GSM9155023_active_AMR_58056",
+      "GSM9155024_acute_TCMR_58057",
+      "GSM9155025_chronic_active_AMR_58058"
+    ]
+  },
+  "parameters": {
+    "seed": 42,
+    "preprocessing": {
+      "min_genes": 200,
+      "min_cells": 3,
+      "max_pct_mt": 20,
+      "n_top_genes": 2000
+    },
+    "clustering": {
+      "n_pcs": 30,
+      "n_neighbors": 15,
+      "resolution": 0.5,
+      "top_markers": 100
+    },
+    "spatial": {
+      "coord_type": "grid",
+      "n_neighs": 6,
+      "n_perms": 999,
+      "distance_bins": 20
+    },
+    "cell_types": {
+      "method": "marker"
+    },
+    "marker_profiles": {
+      "n_clusters": 6
+    },
+    "ligand_receptor": {
+      "n_perms": 999,
+      "fdr": 0.05
+    },
+    "visualization": {
+      "figure_dpi": 150,
+      "spot_size": 1.3
+    }
+  },
+  "samples": [
+    {
+      "name": "GSM9155022_control_58055",
+      "condition": "control",
+      "rejection_type": "none"
+    },
+    {
+      "name": "GSM9155023_active_AMR_58056",
+      "condition": "rejection",
+      "rejection_type": "active_AMR"
+    },
+    {
+      "name": "GSM9155024_acute_TCMR_58057",
+      "condition": "rejection",
+      "rejection_type": "acute_TCMR"
+    },
+    {
+      "name": "GSM9155025_chronic_active_AMR_58058",
+      "condition": "rejection",
+      "rejection_type": "chronic_active_AMR"
+    }
+  ],
+  "versions": {
+    "scanpy": "1.11.5",
+    "squidpy": "1.6.5",
+    "anndata": "0.11.4",
+    "numpy": "1.26.4",
+    "pandas": "2.2.3",
+    "scipy": "1.15.3",
+    "scikit-learn": "1.6.1",
+    "leidenalg": "0.10.2"
+  },
+  "dependency_lock_sha256": "9b63473253684f6743da4394761fa908d5e28ac0e1134949581167dc3098ffba",
+  "validation": {
+    "n_spots": 3431,
+    "n_genes": 18027,
+    "n_samples": 4,
+    "n_expression_clusters": 11,
+    "n_marker_profiles": 6,
+    "marker_rows": 1100,
+    "nonfinite_marker_logfoldchanges": 0,
+    "undirected_spatial_edges": 8414,
+    "cross_sample_edges": 0,
+    "candidate_lr_pairs": 48,
+    "available_lr_pairs": 45,
+    "lr_hypotheses": 8505,
+    "fdr_screened_lr_rows": 228,
+    "n_perms": 999,
+    "completed_notebooks": 5,
+    "regression_tests_passed": 15,
+    "synthetic_notebook_smoke_passed": true
+  },
+  "note": "Only parameters and provenance are published here; machine-specific input/output paths are omitted.",
+  "regression_test_code_commit": "d57fde12ebbf88ae3fddeee1ca782fa82293c072",
+  "synthetic_notebook_test_code_commit": "75354df38d1679765dea7cb3dcfcbe07611009e1",
+  "figure_rendering_update": {
+    "code_commit": "d57fde12ebbf88ae3fddeee1ca782fa82293c072",
+    "source_checkpoint": "corrected_20261114/processed/adata_final.h5ad",
+    "figures": [
+      "expression_clusters_on_tissue.png",
+      "marker_profiles_on_tissue.png"
+    ],
+    "reason": "Use consistent category colors across biopsies, including biopsies with absent groups. Numerical results are unchanged."
+  }
+}

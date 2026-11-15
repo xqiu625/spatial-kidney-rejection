@@ -1,0 +1,19 @@
+{
+  "n_spots": 3431,
+  "n_genes": 18027,
+  "n_samples": 4,
+  "n_expression_clusters": 11,
+  "n_marker_profiles": 6,
+  "marker_rows": 1100,
+  "nonfinite_marker_logfoldchanges": 0,
+  "undirected_spatial_edges": 8414,
+  "cross_sample_edges": 0,
+  "candidate_lr_pairs": 48,
+  "available_lr_pairs": 45,
+  "lr_hypotheses": 8505,
+  "fdr_screened_lr_rows": 228,
+  "n_perms": 999,
+  "completed_notebooks": 5,
+  "regression_tests_passed": 15,
+  "synthetic_notebook_smoke_passed": true
+}

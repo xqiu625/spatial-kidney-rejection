@@ -10,6 +10,22 @@ The implementation was corrected after a code and statistical review. Earlier ta
 
 Every new run records its configuration, package versions, code revision, and completion checkpoints in a separate run directory. See [the correction record](docs/corrections.md) for the changes and validation status.
 
+## Regenerated example results
+
+The corrected workflow completed on all four source biopsies: **3,431 spots, 18,027 genes, 11 expression clusters**, and **zero cross-biopsy spatial edges**. [Full tables, validation and run provenance](results/README.md) are included. The six marker-profile groups are a configured partition, not six validated anatomical niches.
+
+![Expression UMAP by cluster and biopsy](results/figures/expression_umap.png)
+*Expression-only embedding. Strong biopsy-specific structure is visible; this is not evidence of a patient-level rejection signature.*
+
+![Expression clusters on individual tissue sections](results/figures/expression_clusters_on_tissue.png)
+*Each tissue section uses its own image and coordinate system.*
+
+![Marker scores by biopsy](results/figures/marker_scores_by_sample.png)
+*Background-corrected marker scores, not cell fractions or independently replicated group differences.*
+
+![Within-biopsy neighborhood enrichment](results/figures/neighborhood_enrichment_by_sample.png)
+*Neighborhood permutation Z-scores are computed separately for each biopsy; color scales are shown per panel.*
+
 ## Workflow
 
 ```mermaid
