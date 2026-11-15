@@ -163,7 +163,7 @@ def test_lr_plot_honors_top_n():
     plt.close(fig)
 
 
-def test_spatial_profile_colors_do_not_shift_when_groups_are_absent():
+def test_spatial_profile_colors_do_not_shift_when_groups_are_absent(tmp_path):
     import matplotlib.pyplot as plt
     from matplotlib.colors import to_rgba
     a = toy()
@@ -179,6 +179,10 @@ def test_spatial_profile_colors_do_not_shift_when_groups_are_absent():
         actual = fig.axes[index].collections[0].get_facecolors()[0]
         np.testing.assert_allclose(actual, to_rgba(colors[index]))
     plt.close(fig)
+    checkpoint = tmp_path / 'colored.h5ad'
+    utils.save_checkpoint(a, checkpoint)
+    restored = ad.read_h5ad(checkpoint)
+    np.testing.assert_array_equal(restored.uns['marker_profile_colors'], colors)
 
 
 def test_geo_preparation_rejects_nonfiles_and_never_extracts_paths(tmp_path):

@@ -238,7 +238,7 @@ def plot_spatial_clusters(
     categories = adata.obs[cluster_key].cat.categories
     color_key = f'{cluster_key}_colors'
     if color_key not in adata.uns or len(adata.uns[color_key]) != len(categories):
-        adata.uns[color_key] = sns.color_palette('husl', len(categories)).as_hex()
+        adata.uns[color_key] = list(sns.color_palette('husl', len(categories)).as_hex())
 
     nrows = int(np.ceil(len(samples) / ncols))
     fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 5 * nrows))

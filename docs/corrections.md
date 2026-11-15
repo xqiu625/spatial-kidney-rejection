@@ -36,6 +36,8 @@ Verified on Python 3.12 with the committed dependency lock:
 
 After the complete run, the two categorical tissue figures were rendered again from its unchanged final checkpoint with the palette correction in commit `d57fde1`. This changes the displayed colors only; the numerical tables are unchanged. The complete notebook execution used `75354df`, and the 15-test regression run includes the subsequent palette fix. Both revisions are recorded in the results manifest.
 
+The first hosted integration run exposed a serialization regression in that palette correction: Seaborn's `ColorPalette` rendered correctly but could not be written into an H5AD checkpoint. Colors are now stored as a plain list. The color regression test also saves and reloads the checkpoint, covering the previously missed path. This fix leaves the color values and numerical results unchanged.
+
 The compact metrics and portable provenance are published under [results](../results/README.md). The original archive SHA-256 is `c798a1065a04cf967cb388f4c03fd40aa0b15421ba115b8124674f59317f211c`.
 
-GitHub Actions is configured for the same regression and synthetic notebook checks; a hosted CI run has not been verified in this local revision. Reference training and additional biological replication were not performed. These checks verify implementation and reproducibility, not clinical inference or experimentally confirmed communication.
+GitHub Actions runs the regression and synthetic notebook checks on every push; consult the [workflow runs](https://github.com/xqiu625/spatial-kidney-rejection/actions/workflows/tests.yml) for the status of each revision. Reference training and additional biological replication were not performed. These checks verify implementation and reproducibility, not clinical inference or experimentally confirmed communication.
