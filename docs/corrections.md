@@ -22,7 +22,7 @@ No new Cell2location training workflow or patient-level inferential model was ad
 
 ## Validation
 
-Verified on Python 3.12 with the committed dependency lock:
+The initial correction was verified on Python 3.12 with the environment recorded in [the results manifest](../results/run_manifest.json):
 
 - 15 regression tests passed, including cross-biopsy category-color consistency.
 - All five notebooks completed on a synthetic Visium archive and passed saved-output assertions.
@@ -41,3 +41,11 @@ The first hosted integration run exposed a serialization regression in that pale
 The compact metrics and portable provenance are published under [results](../results/README.md). The original archive SHA-256 is `c798a1065a04cf967cb388f4c03fd40aa0b15421ba115b8124674f59317f211c`.
 
 GitHub Actions runs the regression and synthetic notebook checks on every push; consult the [workflow runs](https://github.com/xqiu625/spatial-kidney-rejection/actions/workflows/tests.yml) for the status of each revision. Reference training and additional biological replication were not performed. These checks verify implementation and reproducibility, not clinical inference or experimentally confirmed communication.
+
+## Security dependency update — November 15, 2026
+
+Updated PyArrow to 23.0.1, setuptools to 84.1.0 and pytest to 9.0.3. Removed the unused nbconvert dependency and its exclusive dependencies; notebook execution continues through nbclient. SpatialData 0.7.2 removes the obsolete xarray-schema/pkg_resources dependency, allowing the setuptools update. Its compatible stack requires Squidpy 1.8.0, AnnData 0.12.6, NumPy 2.2.6, Zarr 3.1.3 and related lock updates. Dask and Distributed are pinned to 2026.1.1, including the dashboard security fix while respecting SpatialData's version constraints.
+
+In a fresh Python 3.12 environment, `pip check` passed, all 15 regression tests passed, and all five notebooks completed on the synthetic Visium fixture with saved-output assertions passing. An OSV query of all 161 locked package versions returned no known vulnerability matches on November 15, 2026. GitHub Actions also checks dependency consistency with `pip check`.
+
+Analysis source code and the published real-data outputs are unchanged. The four-biopsy analysis was not rerun for this dependency update; its original versions and validation remain in the results manifest.

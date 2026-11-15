@@ -54,6 +54,8 @@ Notebook 04 retains its earlier filename for continuity; it does not claim to di
 
 Python 3.12 is the tested version. The full verified environment includes transitive dependencies; `requirements.txt` lists the main pinned dependencies.
 
+The current lock includes the November 15, 2026 security dependency updates and passes the regression and synthetic notebook checks. The published real-data examples retain their original package versions in [run_manifest.json](results/run_manifest.json); they have not been regenerated with the updated environment.
+
 ```bash
 git clone https://github.com/xqiu625/spatial-kidney-rejection.git
 cd spatial-kidney-rejection
@@ -62,7 +64,7 @@ source .venv/bin/activate
 python -m pip install -r requirements-lock.txt
 ```
 
-Alternatively, `mamba env create -f environment.yml` installs the main pinned dependencies through pip inside a Python 3.12 environment.
+Alternatively, `mamba env create -f environment.yml` installs the same locked dependencies through pip inside a Python 3.12 environment.
 
 Download **GSE304669_RAW.tar** from the supplementary files on the [GEO accession page](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE304669). Save it as `data/GSE304669_RAW.tar`. This public archive contains the sample-prefixed compressed matrices, positions and images used by the loader.
 
