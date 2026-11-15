@@ -10,9 +10,6 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from typing import List, Optional, Union, Tuple
-import warnings
-
-warnings.filterwarnings('ignore')
 
 # Set style
 plt.style.use('default')
@@ -108,13 +105,17 @@ def plot_spatial_feature(
     Axes
         Plot axes
     """
+    if sample is None and adata.obs['sample'].nunique() != 1:
+        raise ValueError('Choose one sample; coordinates cannot be pooled across slides')
+    if sample is not None and sample not in set(adata.obs['sample']):
+        raise ValueError(f'Unknown sample: {sample}')
     if sample is not None:
         adata_plot = adata[adata.obs['sample'] == sample].copy()
         lib_id = sample
     else:
         adata_plot = adata
         # Get library_id from uns if single sample
-        lib_id = list(adata_plot.uns.get('spatial', {}).keys())[0] if 'spatial' in adata_plot.uns else None
+        lib_id = str(adata_plot.obs['sample'].iloc[0])
 
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(6, 6))
@@ -170,6 +171,8 @@ def plot_spatial_multi_feature(
     Figure
         Matplotlib figure
     """
+    if not features or ncols < 1:
+        raise ValueError('Provide features and a positive ncols')
     nrows = int(np.ceil(len(features) / ncols))
     figsize = (figsize_per_panel[0] * ncols, figsize_per_panel[1] * nrows)
 
@@ -259,177 +262,25 @@ def plot_spatial_clusters(
     return fig
 
 
-def plot_deconvolution_results(
-    adata: sc.AnnData,
-    cell_types: List[str],
-    sample: Optional[str] = None,
-    ncols: int = 4,
-    save_path: Optional[Union[str, Path]] = None,
-    **kwargs
-) -> plt.Figure:
-    """
-    Plot cell type deconvolution results.
 
-    Parameters
-    ----------
-    adata : AnnData
-        Data with deconvolution results in obsm
-    cell_types : list of str
-        Cell types to plot
-    sample : str, optional
-        Sample to plot
-    ncols : int
-        Number of columns
-    save_path : str or Path, optional
-        Path to save figure
-
-    Returns
-    -------
-    Figure
-        Matplotlib figure
-    """
-    return plot_spatial_multi_feature(
-        adata, cell_types, sample=sample,
-        ncols=ncols, save_path=save_path,
-        cmap='Reds', **kwargs
-    )
-
-
-def plot_nhood_enrichment(
-    adata: sc.AnnData,
-    cluster_key: str = 'leiden',
-    save_path: Optional[Union[str, Path]] = None,
-    figsize: Tuple[int, int] = (8, 8)
-) -> plt.Figure:
-    """
-    Plot neighborhood enrichment heatmap.
-
-    Parameters
-    ----------
-    adata : AnnData
-        Data with neighborhood enrichment computed
-    cluster_key : str
-        Key for cluster labels
-    save_path : str or Path, optional
-        Path to save figure
-    figsize : tuple
-        Figure size
-
-    Returns
-    -------
-    Figure
-        Matplotlib figure
-    """
-    fig, ax = plt.subplots(1, 1, figsize=figsize)
-
-    sq.pl.nhood_enrichment(
-        adata,
-        cluster_key=cluster_key,
-        ax=ax
-    )
-
-    plt.tight_layout()
-
+def plot_ligand_receptor(results, top_n=20, save_path=None):
+    """Plot a caller-selected LR table; FDR filtering is explicit at the call site."""
+    if top_n < 1:
+        raise ValueError('top_n must be positive')
+    fig, ax = plt.subplots(figsize=(10, 8))
+    top = results.nlargest(top_n, 'score').iloc[::-1].copy()
+    if top.empty:
+        ax.text(0.5, 0.5, 'No spatial LR associations passed the specified FDR threshold',
+                ha='center', va='center', transform=ax.transAxes, wrap=True)
+        ax.set_axis_off()
+    else:
+        labels = (top['sample'].astype(str) + ': ' + top['ligand'] + ' → ' + top['receptor'] +
+                  ' (' + top['source'].astype(str) + ' → ' + top['target'].astype(str) + ')')
+        ax.barh(np.arange(len(top)), top['score'])
+        ax.set_yticks(np.arange(len(top)), labels)
+        ax.set_xlabel('Mean log-expression product on within-sample edges')
+        ax.set_title('Exploratory spatial LR label associations (FDR-filtered)')
+    fig.tight_layout()
     if save_path:
-        fig.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"Saved to {save_path}")
-
-    return fig
-
-
-def plot_ligand_receptor(
-    adata: sc.AnnData,
-    cluster_key: str = 'leiden',
-    top_n: int = 20,
-    save_path: Optional[Union[str, Path]] = None,
-    figsize: Tuple[int, int] = (12, 8)
-) -> plt.Figure:
-    """
-    Plot ligand-receptor analysis results.
-
-    Parameters
-    ----------
-    adata : AnnData
-        Data with L-R analysis results
-    cluster_key : str
-        Key for cluster labels
-    top_n : int
-        Number of top interactions to show
-    save_path : str or Path, optional
-        Path to save figure
-    figsize : tuple
-        Figure size
-
-    Returns
-    -------
-    Figure
-        Matplotlib figure
-    """
-    fig, ax = plt.subplots(1, 1, figsize=figsize)
-
-    sq.pl.ligrec(
-        adata,
-        cluster_key=cluster_key,
-        source_groups=None,
-        target_groups=None,
-        ax=ax
-    )
-
-    plt.tight_layout()
-
-    if save_path:
-        fig.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"Saved to {save_path}")
-
-    return fig
-
-
-def create_publication_figure(
-    panels: List[plt.Figure],
-    layout: Tuple[int, int],
-    labels: Optional[List[str]] = None,
-    figsize: Optional[Tuple[int, int]] = None,
-    save_path: Optional[Union[str, Path]] = None
-) -> plt.Figure:
-    """
-    Combine multiple panels into a publication-ready figure.
-
-    Parameters
-    ----------
-    panels : list of Figure
-        Panel figures
-    layout : tuple
-        (nrows, ncols) for layout
-    labels : list of str, optional
-        Panel labels (A, B, C, ...)
-    figsize : tuple, optional
-        Figure size
-    save_path : str or Path, optional
-        Path to save figure
-
-    Returns
-    -------
-    Figure
-        Combined figure
-    """
-    nrows, ncols = layout
-    if figsize is None:
-        figsize = (6 * ncols, 6 * nrows)
-
-    if labels is None:
-        labels = [chr(65 + i) for i in range(len(panels))]  # A, B, C, ...
-
-    fig = plt.figure(figsize=figsize)
-
-    for i, (panel, label) in enumerate(zip(panels, labels)):
-        ax = fig.add_subplot(nrows, ncols, i + 1)
-        ax.text(-0.1, 1.1, label, transform=ax.transAxes,
-                fontsize=16, fontweight='bold', va='top', ha='right')
-
-    plt.tight_layout()
-
-    if save_path:
-        fig.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"Saved to {save_path}")
-
+        fig.savefig(save_path, dpi=150, bbox_inches='tight')
     return fig

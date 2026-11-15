@@ -3,14 +3,10 @@ Preprocessing functions for spatial transcriptomics data
 """
 
 import scanpy as sc
-import squidpy as sq
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from typing import List, Optional, Dict, Union
-import warnings
-
-warnings.filterwarnings('ignore')
 
 
 def load_visium_sample(
@@ -90,26 +86,25 @@ def load_visium_sample(
 
     # Load tissue positions
     positions_path = spatial_dir / 'tissue_positions.csv'
-    positions = pd.read_csv(positions_path, header=0)
-
-    # Handle different column naming conventions
-    if 'barcode' in positions.columns:
-        positions = positions.set_index('barcode')
+    if positions_path.exists():
+        positions = pd.read_csv(positions_path)
     else:
-        positions = positions.set_index(positions.columns[0])
-
-    # Filter positions to match barcodes in adata
-    common_barcodes = positions.index.intersection(adata.obs_names)
-    positions = positions.loc[common_barcodes]
-    adata = adata[common_barcodes].copy()
-
-    # Extract coordinates (columns: in_tissue, array_row, array_col, pxl_row, pxl_col)
-    if positions.shape[1] >= 5:
-        spatial_coords = positions.iloc[:, [4, 3]].values.astype(float)  # pxl_col, pxl_row -> x, y
-    else:
-        spatial_coords = positions.iloc[:, [3, 2]].values.astype(float)  # fallback
-
-    adata.obsm['spatial'] = spatial_coords
+        positions = pd.read_csv(spatial_dir / 'tissue_positions_list.csv', header=None,
+            names=['barcode', 'in_tissue', 'array_row', 'array_col',
+                   'pxl_row_in_fullres', 'pxl_col_in_fullres'])
+    positions = positions.set_index('barcode')
+    if not positions.index.is_unique or not adata.obs_names.is_unique:
+        raise ValueError(f'Duplicate barcodes in {library_id}')
+    missing = adata.obs_names.difference(positions.index)
+    if len(missing):
+        raise ValueError(f'{library_id}: {len(missing)} matrix barcodes lack spatial coordinates')
+    positions = positions.loc[adata.obs_names]
+    adata.obs['barcode'] = adata.obs_names
+    adata.obs['in_tissue'] = positions['in_tissue'].to_numpy()
+    adata.obsm['spatial'] = positions[['pxl_col_in_fullres', 'pxl_row_in_fullres']].to_numpy(float)
+    if not np.isfinite(adata.obsm['spatial']).all():
+        raise ValueError(f'Non-finite coordinates in {library_id}')
+    adata = adata[adata.obs['in_tissue'] == 1].copy()
 
     # Load images
     hires_path = spatial_dir / 'tissue_hires_image.png'
@@ -151,6 +146,8 @@ def load_all_samples(
         sample_dirs = sorted([d for d in raw_dir.iterdir() if d.is_dir() and d.name.startswith('GSM')])
         sample_info = [{'name': d.name, 'condition': 'unknown'} for d in sample_dirs]
 
+    if not sample_info or len({x['name'] for x in sample_info}) != len(sample_info):
+        raise ValueError('Provide at least one sample, with unique sample names')
     adatas = []
     spatial_dict = {}  # Store spatial info for all samples
 
@@ -160,6 +157,7 @@ def load_all_samples(
             print(f"Loading {info['name']}...")
             adata = load_visium_sample(sample_path, info['name'])
             adata.obs['condition'] = info.get('condition', 'unknown')
+            adata.obs['rejection_type'] = info.get('rejection_type', 'unknown')
 
             # Store spatial info before concatenation
             if 'spatial' in adata.uns:
@@ -167,10 +165,11 @@ def load_all_samples(
 
             adatas.append(adata)
         else:
-            print(f"Warning: {sample_path} not found, skipping")
+            raise FileNotFoundError(f'Required sample missing: {sample_path}')
 
     # Concatenate
-    adata = sc.concat(adatas, label='sample', keys=[a.obs['sample'][0] for a in adatas])
+    adata = sc.concat(adatas, label='sample', keys=[x['name'] for x in sample_info],
+                      index_unique='::', merge='same')
 
     # Restore spatial info after concatenation
     adata.uns['spatial'] = spatial_dict
@@ -200,7 +199,7 @@ def calculate_qc_metrics(adata: sc.AnnData) -> sc.AnnData:
     adata.var['ribo'] = adata.var_names.str.startswith(('RPS', 'RPL'))
 
     # Hemoglobin genes
-    adata.var['hb'] = adata.var_names.str.contains('^HB[^(P)]')
+    adata.var['hb'] = adata.var_names.str.match(r'^HB(?!P)')
 
     # Calculate QC metrics
     sc.pp.calculate_qc_metrics(
@@ -273,14 +272,22 @@ def normalize_data(adata: sc.AnnData, target_sum: float = 1e4) -> sc.AnnData:
     AnnData
         Normalized data
     """
-    # Store raw counts
-    adata.layers['counts'] = adata.X.copy()
+    # Reuse counts when called again; never replace counts with normalized data.
+    if 'counts' not in adata.layers:
+        values = adata.X.data if hasattr(adata.X, 'toarray') else np.asarray(adata.X)
+        if not np.isfinite(values).all() or (values < 0).any() or not np.allclose(values, np.rint(values)):
+            raise ValueError('Normalization requires finite, nonnegative UMI counts')
+        adata.layers['counts'] = adata.X.copy()
+    adata.X = adata.layers['counts'].copy()
+    if np.any(np.asarray(adata.X.sum(axis=1)).ravel() <= 0):
+        raise ValueError('Remove zero-count spots before normalization')
 
     # Normalize
     sc.pp.normalize_total(adata, target_sum=target_sum)
 
     # Log transform
     sc.pp.log1p(adata)
+    adata.layers['lognorm'] = adata.X.copy()
 
     return adata
 
@@ -351,6 +358,9 @@ def run_preprocessing_pipeline(
     print("=" * 50)
     print("SPATIAL TRANSCRIPTOMICS PREPROCESSING PIPELINE")
     print("=" * 50)
+
+    if Path(output_path).exists():
+        raise FileExistsError(f'Use a new run directory: {output_path}')
 
     # Load data
     print("\n1. Loading samples...")

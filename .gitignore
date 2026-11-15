@@ -50,3 +50,9 @@ snippets.sh
 
 # Large result files (keep CSVs and PNGs, exclude H5AD)
 results/**/*.h5ad
+
+# Per-run data, executed notebooks and local caches
+runs/
+.pytest_cache/
+.coverage
+*.partial.h5ad

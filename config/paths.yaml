@@ -1,24 +1,19 @@
-# Path configuration for HPCC cluster
-
-base_dir: /bigdata/godziklab/shared/Xinru/302031-spatial-kidney
-
+# Paths are relative to the repository root. SKR_DATA_DIR overrides base_dir.
+base_dir: .
 data:
   raw: ${base_dir}/data/raw
-  processed: ${base_dir}/data/processed
-  reference: ${base_dir}/data/reference
-
-output:
-  results: ${base_dir}/results
-  tables: ${base_dir}/results/tables
-  figures: ${base_dir}/results/figures
-
-# Sample information
+# SKR_RUN_DIR overrides this. Use a fresh directory for every complete run.
+run_dir: runs/current
 samples:
   - name: GSM9155022_control_58055
     condition: control
+    rejection_type: none
   - name: GSM9155023_active_AMR_58056
     condition: rejection
+    rejection_type: active_AMR
   - name: GSM9155024_acute_TCMR_58057
     condition: rejection
+    rejection_type: acute_TCMR
   - name: GSM9155025_chronic_active_AMR_58058
     condition: rejection
+    rejection_type: chronic_active_AMR

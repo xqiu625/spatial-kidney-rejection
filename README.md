@@ -1,292 +1,102 @@
-# Spatial Transcriptomics Analysis of Kidney Transplant Rejection
+# Spatial Kidney Rejection — Exploratory Visium Analysis
 
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Scanpy](https://img.shields.io/badge/Scanpy-1.9+-orange.svg)](https://scanpy.readthedocs.io/)
-[![Squidpy](https://img.shields.io/badge/Squidpy-1.3+-purple.svg)](https://squidpy.readthedocs.io/)
-[![Paper](https://img.shields.io/badge/Paper-Frontiers_in_Immunology-red.svg)](https://www.frontiersin.org/journals/immunology/articles/10.3389/fimmu.2025.1654741/full)
+A reproducible notebook workflow for four kidney allograft biopsies from [GSE304669](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE304669): one control and one biopsy each with active AMR, acute TCMR, and chronic active AMR.
 
-> **Graph-theoretic and permutation-based statistical framework for dissecting immune microenvironments in kidney allograft rejection from 10X Visium data.**
+The workflow combines expression clustering, marker scores, within-biopsy spatial neighborhoods, and exploratory ligand–receptor (LR) gene-pair associations. It does **not** estimate validated cell proportions, demonstrate signaling activity, or test rejection effects across patients. The single control biopsy cannot establish control-population variability.
 
-This project extends our [published research in Frontiers in Immunology](https://www.frontiersin.org/journals/immunology/articles/10.3389/fimmu.2025.1654741/full) (Data: [GSE304669](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE304669)) with a fully quantitative treatment of spatial neighborhood analysis, cell–cell communication inference, and condition-specific ligand–receptor profiling.
+## Analysis status
 
----
+The implementation was corrected after a code and statistical review. Earlier tables, images, and the original overview diagram are retained in [results/legacy_20260724](results/legacy_20260724) as **superseded outputs**. They must not be mixed with outputs from the corrected notebooks.
 
-## Key Results
+Every new run records its configuration, package versions, code revision, and completion checkpoints in a separate run directory. See [the correction record](docs/corrections.md) for the changes and validation status.
 
-| Metric | Value |
-|--------|-------|
-| **Spots Analyzed** | 3,431 |
-| **Genes** | 18,027 |
-| **Samples** | 4 (1 Control + 3 Rejection Types) |
-| **Spatial Clusters** | 11 |
-| **Tissue Niches** | 6 |
-| **L-R Pairs Tested** | 50 kidney-relevant pairs |
+## Workflow
 
----
-
-## Analysis Pipeline
-
-![Spatial Transcriptomics Pipeline](spatial-kidney-rejection-overview.jpeg)
-*Complete analysis pipeline from data loading through ligand-receptor analysis*
-
----
-
-## Mathematical Framework
-
-### 1. Data Model
-
-A Visium sample is a tuple $(\mathbf{X}, \mathbf{P})$ where $\mathbf{X} \in \mathbb{N}_0^{n \times G}$ is the UMI count matrix over $n = 3{,}431$ spots and $G = 18{,}027$ genes, and $\mathbf{P} \in \mathbb{R}^{n \times 2}$ holds the spatial centroids. Counts are library-size normalized and log-transformed:
-
-$$\tilde{x}_{ig} = \log\left(1 + 10^{4} \cdot \frac{x_{ig}}{\sum_{g'=1}^{G} x_{ig'}}\right).$$
-
-### 2. Spatial Proximity Graph
-
-Tissue geometry is encoded as an undirected graph
-
-$$\mathcal{G} = (\mathcal{V}, \mathcal{E}), \qquad A_{ij} = \mathbb{1}\left[\  j \in \mathrm{kNN}_k(i)\ \lor\ i \in \mathrm{kNN}_k(j) \ \right],$$
-
-where $A$ is the adjacency matrix and $\mathrm{kNN}_k(i)$ are the $k$ nearest neighbors of spot $i$ under Euclidean distance on $\mathbf{P}$. All spatial statistics below are computed on $\mathcal{G}$.
-
-### 3. Graph-Based Clustering (Leiden)
-
-Spots are partitioned by maximizing modularity on the (expression $\times$ space) neighbor graph at resolution $\gamma$:
-
-$$Q = \frac{1}{2m}\sum_{i,j}\left[ A_{ij} - \gamma \  \frac{k_i k_j}{2m} \right] \delta(c_i, c_j), \qquad k_i = \sum_j A_{ij},\quad m = \tfrac{1}{2}\sum_{i,j} A_{ij},$$
-
-where $c_i$ is the community of spot $i$ and $\delta$ the Kronecker delta. The Leiden algorithm guarantees communities that are *well-connected* (no disconnected sub-communities), unlike Louvain.
-
-### 4. Marker-Based Cell Type Scoring
-
-Each of the 8 kidney cell types $t$ is defined by a marker set $\mathcal{M}_t$. A spot's affinity for type $t$ is the mean of per-gene $z$-scored expression over the marker set:
-
-$$s_i^{(t)} = \frac{1}{|\mathcal{M}_t|}\sum_{g \in \mathcal{M}_t} z_{ig}, \qquad z_{ig} = \frac{\tilde{x}_{ig} - \mu_g}{\sigma_g},$$
-
-with hard assignment $t_i^{*} = \arg\max_{t}\  s_i^{(t)}$.
-
-### 5. Neighborhood Enrichment
-
-For cluster pair $(a, b)$, let $N_{ab}$ be the number of edges in $\mathcal{G}$ connecting a spot of cluster $a$ to one of cluster $b$. Significance is assessed against the null of spatial randomness via label permutation:
-
-$$Z_{ab} = \frac{N_{ab} - \mathbb{E}_{0}[N_{ab}]}{\mathrm{sd}_{0}(N_{ab})},$$
-
-where $\mathbb{E}_0$ and $\mathrm{sd}_0$ are taken over permutations of the cluster labels. $|Z_{ab}| \gg 2$ indicates significant co-localization ($Z > 0$: enrichment; $Z < 0$: avoidance).
-
-### 6. Ligand–Receptor Communication Inference
-
-For a curated ligand–receptor pair $(\ell, r)$ and sender/receiver populations $(\mathcal{S}, \mathcal{R})$ that are spatially adjacent, the interaction score couples mean ligand and receptor expression:
-
-$$S_{\ell r} = \bar{x}_{\ell}^{(\mathcal{S})} \cdot \bar{x}_{r}^{(\mathcal{R})}, \qquad \bar{x}_{g}^{(\mathcal{C})} = \frac{1}{|\mathcal{C}|}\sum_{i \in \mathcal{C}} \tilde{x}_{ig}.$$
-
-**Permutation test** ($B = 500$): cell-type labels are reshuffled 500 times to build a null distribution $\{S^{(b)}\}$ over the statistic, and the exact Monte-Carlo p-value is
-
-$$p = \frac{1 + \sum_{b=1}^{B} \mathbb{1}\left[\  S^{(b)} \geq S_{\text{obs}} \ \right]}{B + 1}.$$
-
-**Condition-specific differential signaling** between rejection and control is quantified as
-
-$$\Delta \log_2 \mathrm{FC}_{\ell r} = \log_2 \frac{S_{\ell r}^{\ \text{rejection}} + \varepsilon}{S_{\ell r}^{\ \text{control}} + \varepsilon}, \qquad \varepsilon \ll 1.$$
-
-### 7. Multiple Testing Correction
-
-Across the $m = 50$ tested pairs, Benjamini–Hochberg controls the false discovery rate: with ordered $p$-values $p_{(1)} \leq \dots \leq p_{(m)}$, reject $H_{0(i)}$ for all $i \leq k^{*} = \max\{ i : p_{(i)} \leq \frac{i}{m} q \}$ at level $q = 0.05$.
-
----
-
-## Methods Summary
-
-| Analysis | Method | Mathematical Object |
-|----------|--------|---------------------|
-| **Spatial Clustering** | Leiden + Spatial PCA | Modularity maximization on $\mathcal{G}$ |
-| **Cell Type Scoring** | Marker-based | $z$-scored marker means, $\arg\max$ assignment |
-| **Niche Identification** | Squidpy | Permutation $Z$-score of graph edge counts |
-| **L-R Communication** | Custom permutation | Score $S_{\ell r}$ + exact MC $p$-value ($B = 500$) |
-| **Differential Analysis** | Log2FC comparison | $\Delta \log_2 \mathrm{FC}$ rejection vs control |
-
-### Cell Types Analyzed
-
-- **Proximal Tubule** (CUBN, LRP2, SLC34A1)
-- **Distal Tubule** (SLC12A3, CALB1)
-- **Collecting Duct** (AQP2, AQP3)
-- **Endothelial** (PECAM1, VWF, CD34)
-- **Immune Cells** (PTPRC, CD68, CD3D)
-- **Fibroblasts** (COL1A1, DCN, VIM)
-- **Podocytes** (NPHS1, NPHS2, WT1)
-- **Mesangial** (PDGFRB, ACTA2)
-
-### Ligand-Receptor Pairs Profiled
-
-Curated kidney-relevant interactions including:
-- **Immune signaling**: CCL2-CCR2, CXCL10-CXCR3, TNF-TNFRSF1A
-- **Fibrosis**: TGFB1-TGFBR1/2, PDGFB-PDGFRB
-- **Complement**: C3-C3AR1, C5-C5AR1
-- **Immune checkpoints**: CD274-PDCD1 (PD-L1/PD-1)
-- **Antigen presentation**: HLA-A-CD8A, HLA-DRA-CD4
-
----
-
-## Repository Structure
-
-```
-spatial-kidney-rejection/
-│
-├── notebooks/                    # Analysis notebooks (run sequentially)
-│   ├── 01_data_loading_qc.ipynb       # Data loading, QC, normalization
-│   ├── 02_spatial_clustering.ipynb    # Leiden clustering, UMAP
-│   ├── 03_cell2location_deconv.ipynb  # Cell type scoring
-│   ├── 04_spatial_niche_analysis.ipynb # Spatial neighborhoods
-│   └── 05_ligand_receptor.ipynb       # L-R communication analysis
-│
-├── src/                          # Reusable Python modules
-│   ├── preprocessing.py               # Data loading & QC functions
-│   ├── visualization.py               # Spatial plotting functions
-│   └── utils.py                       # Helper functions & sample info
-│
-├── config/                       # Configuration files
-│   ├── analysis_params.yaml           # Analysis parameters
-│   └── paths.yaml                     # Data paths
-│
-├── results/                      # Analysis outputs
-│   ├── figures/                       # Generated visualizations
-│   └── tables/                        # CSV results
-│
-├── environment.yml               # Conda environment
-├── requirements.txt              # Pip dependencies
-└── README.md
+```mermaid
+flowchart LR
+    A[Visium counts and coordinates] --> B[QC and log normalization]
+    B --> C[Expression PCA and Leiden]
+    C --> D[Background-corrected marker scores]
+    D --> E[Configured marker-profile groups]
+    C --> F[Separate spatial graph per biopsy]
+    F --> G[Per-biopsy enrichment and co-occurrence]
+    F --> H[LR products on within-biopsy edges]
+    H --> I[Within-biopsy label permutations and BH adjustment]
 ```
 
----
+| Notebook | Outputs |
+|---|---|
+| [01_data_loading_qc](notebooks/01_data_loading_qc.ipynb) | Counts and lognorm layers, QC summaries, unique sample/barcode identifiers |
+| [02_spatial_clustering](notebooks/02_spatial_clustering.ipynb) | Expression-only PCA/Leiden/UMAP, marker candidates, spatial graphs |
+| [03_marker_scoring](notebooks/03_marker_scoring.ipynb) | Marker scores and descriptive summaries per biopsy |
+| [04_spatial_niche_analysis](notebooks/04_spatial_niche_analysis.ipynb) | Marker-profile groups, separate neighborhood/co-occurrence results for each biopsy |
+| [05_ligand_receptor](notebooks/05_ligand_receptor.ipynb) | All spatial LR tests, BH-adjusted screening table, per-biopsy descriptive scores |
 
-## Sample Visualizations
+Notebook 04 retains its earlier filename for continuity; it does not claim to discover validated anatomical niches. The old Cell2location notebook was replaced with explicit marker scoring. Reference-based deconvolution is not supported; selecting that method raises a clear error before training.
 
-### Spatial Clustering
-![Spatial Clusters](results/figures/spatial_clusters_all_samples.png)
-*Leiden clusters mapped to tissue coordinates across all samples*
+## Run from a fresh checkout
 
-### Spatial Niches
-![Spatial Niches](results/figures/spatial_niches_all_samples.png)
-*Tissue microenvironment niches identified across samples*
+Python 3.12 is the tested version. The full verified environment includes transitive dependencies; `requirements.txt` lists the main pinned dependencies.
 
-### Cell Type Distribution
-![Cell Types](results/figures/celltype_spatial_GSM9155022_control_58055.png)
-*Marker-based cell type scoring showing spatial distribution*
-
-### Neighborhood Enrichment
-![Niche Enrichment](results/figures/nhood_enrichment_clusters.png)
-*Cell type co-localization patterns in the tissue microenvironment*
-
-### L-R Communication Network
-![Communication Network](results/figures/communication_network.png)
-*Cell-cell communication network based on ligand-receptor interactions*
-
-### Top Ligand-Receptor Interactions
-![Top LR Pairs](results/figures/top_LR_pairs.png)
-*Ranked ligand-receptor interactions by interaction score*
-
----
-
-## Quick Start
-
-### 1. Clone Repository
 ```bash
 git clone https://github.com/xqiu625/spatial-kidney-rejection.git
 cd spatial-kidney-rejection
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-lock.txt
 ```
 
-### 2. Create Environment
+Alternatively, `mamba env create -f environment.yml` installs the main pinned dependencies through pip inside a Python 3.12 environment.
+
+Download **GSE304669_RAW.tar** from the supplementary files on the [GEO accession page](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE304669). Save it as `data/GSE304669_RAW.tar`. This public archive contains the sample-prefixed compressed matrices, positions and images used by the loader.
+
 ```bash
-# Using conda/mamba
-mamba env create -f environment.yml
-conda activate spatial-kidney
-
-# Or using pip
-pip install -r requirements.txt
+python -m src.prepare_data --archive data/GSE304669_RAW.tar --output data/raw
+python -m src.run_notebooks --run-dir runs/analysis-01
 ```
 
-### 3. Download Data
+Data preparation validates expected archive members, refuses to replace an existing nonempty destination, and writes the archive SHA-256 to `data/raw/source.json`. The expected layout is:
+
+```text
+data/raw/GSM9155022_control_58055/
+  filtered_feature_bc_matrix/{matrix.mtx,features.tsv,barcodes.tsv}
+  spatial/{tissue_positions.csv,scalefactors_json.json,tissue_hires_image.png,tissue_lowres_image.png}
+```
+
+The same structure is required for the other three samples listed in [paths.yaml](config/paths.yaml). Compressed matrix/feature/barcode files and older `tissue_positions_list.csv` are also supported by the loader. Missing samples or unmatched matrix barcodes fail explicitly.
+
+Parameters come from [analysis_params.yaml](config/analysis_params.yaml). `SKR_DATA_DIR` overrides `base_dir`, so the default raw path becomes `$SKR_DATA_DIR/data/raw`. `--run-dir` (or `SKR_RUN_DIR` when running notebooks manually) sets the output directory. Use a **new directory for every complete run**. The workflow refuses to reuse completed checkpoints or mix changed parameters into an existing run.
+
+Executed notebooks and H5AD checkpoints remain under the chosen run directory; source notebooks are kept free of stale execution output. `run.json` records the settings and versions used. For interactive execution, select the same virtual environment's Python kernel, set `SKR_RUN_DIR` before notebook 01, and run 01–05 in order.
+
+## What the calculations mean
+
+**Expression.** Counts are preserved in `layers['counts']`; library-size normalization to 10,000 followed by log1p is preserved in `layers['lognorm']`. Scaling is applied only to a temporary HVG matrix for PCA. Marker-gene testing and LR analysis explicitly read lognorm, regardless of the state of `X`.
+
+**Marker scores and profiles.** Scanpy scores the existing 14 marker sets using matched background genes, where at least two markers are present. These are signed relative expression scores, not fractions or cell counts. KMeans uses a configured number of groups (default six) on these scores. Profile frequencies describe spot groups within each biopsy; biological names require independent marker and histological validation.
+
+**Spatial neighborhoods.** Squidpy constructs a graph separately for each sample; the stored graph is symmetric and has no self edges. A validation step rejects cross-sample edges. Neighborhood label permutations and coordinate-based co-occurrence are computed on individual biopsies. Co-occurrence distances are image pixels, not automatically calibrated microns. Undefined Z-scores remain missing; no disease-level significance is inferred from them.
+
+**LR screening.** For sample s, ordered clusters a/b and candidate genes L/R, let E(s,a,b) be directed graph edges from a spot in a to a spot in b. The score is the mean of `lognorm[i,L] * lognorm[j,R]` over these edges. An empty edge set has score zero. The curated list contains 48 gene-pair candidates; only pairs whose two genes exist in the input are tested. It does not model full receptor complexes.
+
+Cluster labels are shuffled within each biopsy while expression and edges remain fixed. The one-sided Monte Carlo p-value is `(1 + count(null_score >= observed_score)) / (B + 1)`. The default is 999 permutations. BH adjustment covers **all sample × present-cluster × present-cluster × available-LR combinations in the run**, including zero-edge combinations (p=1). Both the full table and the FDR-filtered table are saved; plots use the latter.
+
+This null assumes label exchangeability within a biopsy. Clusters were learned from expression, and spatial autocorrelation is not preserved by unconstrained label shuffling. Accordingly, these are **exploratory label-association scores and adjusted screening statistics**, not calibrated evidence of physical communication, causal signaling, or clinical disease effects. The permutation count also limits p-value resolution.
+
+**Condition summaries.** Tables retain sample ID and rejection subtype. There are no spot-level Mann–Whitney/chi-square disease tests, pooled disease p-values, or claims that thousands of spots create biological replication. More independent biopsies would be needed for patient-level comparisons.
+
+## Tests
+
 ```bash
-# Data from GEO: GSE304669
-# See notebooks/01_data_loading_qc.ipynb for download instructions
+python -m pytest -q
+python tests/smoke_notebooks.py
 ```
 
-### 4. Run Analysis
-```bash
-# Launch Jupyter
-jupyter notebook
+The regression checks cover expression-layer preservation, finite marker fold changes, spatial score dependence, depth-only changes, sample isolation, full-family BH adjustment, disabled reference inference, config/checkpoint protection, data loading, and plotting. The smoke test builds a small synthetic Visium archive and executes all five actual notebooks. GitHub Actions runs both checks.
 
-# Run notebooks 01-05 sequentially
-```
+## Data and software
 
----
-
-## Key Findings
-
-### Spatial Niches in Rejection
-
-The analysis identified **6 distinct tissue niches** with differential cell type compositions between control and rejection samples:
-
-1. **Tubular-dominant niches** - Proximal/distal tubule enriched
-2. **Immune-infiltrated zones** - High immune cell density in rejection
-3. **Fibrotic regions** - Fibroblast accumulation in chronic rejection
-4. **Vascular niches** - Endothelial-rich areas
-5. **Mixed cellular regions** - Transitional zones
-6. **Glomerular regions** - Podocyte and mesangial enriched
-
-### Differential L-R Communication
-
-Comparing rejection vs control samples revealed:
-- **Upregulated in rejection**: Inflammatory chemokine signaling (CXCL9/10-CXCR3)
-- **Immune checkpoint changes**: Altered PD-L1/PD-1 axis
-- **Fibrotic signaling**: Enhanced TGF-β pathway activity
-
----
-
-## Technologies & Skills
-
-| Category | Technologies |
-|----------|-------------|
-| **Languages** | Python 3.10+, R |
-| **Spatial Analysis** | Scanpy, Squidpy, AnnData |
-| **Visualization** | Matplotlib, Seaborn, NetworkX |
-| **Statistics** | Permutation testing, Multiple testing correction |
-| **Data Formats** | 10X Visium, H5AD, MTX |
-| **Environment** | Conda, Jupyter, HPC (SLURM) |
-
----
-
-## Data Source & Citation
-
-- **Publication**: [Frontiers in Immunology (2025)](https://www.frontiersin.org/journals/immunology/articles/10.3389/fimmu.2025.1654741/full)
-- **GEO Accession**: [GSE304669](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE304669)
-- **Platform**: 10X Genomics Visium FFPE
-- **Tissue**: Human kidney transplant biopsies
-- **Conditions**: Control (n=1), Active AMR (n=1), Acute TCMR (n=1), Chronic Active AMR (n=1)
-
----
-
-## Future Directions
-
-- [ ] Integration with reference scRNA-seq for probabilistic deconvolution (Cell2location)
-- [ ] Spatial-aware clustering with BayesSpace
-- [ ] Trajectory analysis of rejection progression
-- [ ] Deep learning-based spatial pattern recognition
-
----
-
-## Author
-
-**Xinru Qiu**
-Computational Biology | Spatial Transcriptomics | Machine Learning
-
----
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## Acknowledgments
-
-- Original data from kidney transplant rejection study (GSE304669)
-- Scanpy and Squidpy development teams
-- 10X Genomics for Visium technology
+- Data: [GSE304669](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE304669), human kidney transplant Visium biopsies.
+- Related study: [Frontiers in Immunology (2025)](https://www.frontiersin.org/journals/immunology/articles/10.3389/fimmu.2025.1654741/full).
+- Software: Scanpy, Squidpy, AnnData, NumPy/SciPy, scikit-learn, pandas and Matplotlib.
+- [MIT license](LICENSE). Analysis by Xinru Qiu.
